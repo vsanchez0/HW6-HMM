@@ -1,7 +1,7 @@
 """
 UCSF BMI203: Biocomputing Algorithms 2024
-Author:
-Date:
+Author: Valeria Sanchez Estrada
+Date: 20 Feb 2025
 Package: 
 Description: 
 """

@@ -39,16 +39,21 @@ class HiddenMarkovModel:
 
         Returns:
             forward_probability (float): forward probability (likelihood) for the input observed sequence  
-        """        
-        
-        # Step 1. Initialize variables
-        
-       
-        # Step 2. Calculate probabilities
+        """      
+        M = len(input_observation_states)
+        N = len(self.hidden_states)
+        # N = self.prior_p.shape[0]
+        alpha = np.zeros((M, N))
 
+        alpha[0,:] = self.prior_p * self.emission_p[:, self.observation_states_dict[input_observation_states[0]]]
 
-        # Step 3. Return final probability 
-        
+        for t in range(1,M):
+            for j in range(N):
+        #         for i in range(N):
+                alpha[t, j] = np.sum(alpha[t - 1, :] * self.transition_p[:, j]) * self.emission_p[j, self.observation_states_dict[input_observation_states[t]]]
+        #             alpha[t,j]+= alpha[t-1, i] * self.transition_p[i, j] * self.emission_p[j, self.input_observation_states[t]]
+
+        return np.sum(alpha[M-1,:])
 
 
     def viterbi(self, decode_observation_states: np.ndarray) -> list:
@@ -63,20 +68,41 @@ class HiddenMarkovModel:
         Returns:
             best_hidden_state_sequence(list): most likely list of hidden states that generated the sequence observed states
         """        
-        
-        # Step 1. Initialize variables
-        
-        #store probabilities of hidden state at each step 
-        viterbi_table = np.zeros((len(decode_observation_states), len(self.hidden_states)))
-        #store best path for traceback
-        best_path = np.zeros(len(decode_observation_states))         
-        
-       
-       # Step 2. Calculate Probabilities
 
-            
-        # Step 3. Traceback 
+        M = len(decode_observation_states)
+        N = len(self.hidden_states)
 
+        if M == 0:
+            return []
 
-        # Step 4. Return best hidden state sequence 
-        
+        viterbi_table = np.zeros((M, N))
+        backpointer = np.zeros((M, N), dtype=int)
+
+        obs_index = self.observation_states_dict.get(decode_observation_states[0], None)
+        if obs_index is None:
+            raise ValueError(f"Unknown observation state: {decode_observation_states[0]}")
+
+        for j in range(N):
+            viterbi_table[0, j] = self.prior_p[j] * self.emission_p[j, obs_index]
+
+        for t in range(1, M):
+            obs_index = self.observation_states_dict.get(decode_observation_states[t], None)
+            if obs_index is None:
+                raise ValueError(f"Unknown observation state: {decode_observation_states[t]}")
+
+            for j in range(N):
+                max_prob, best_state = max(
+                    (viterbi_table[t - 1, i] * self.transition_p[i, j], i) for i in range(N)
+                )
+                viterbi_table[t, j] = max_prob * self.emission_p[j, obs_index]
+                backpointer[t, j] = best_state
+
+        best_final_state = np.argmax(viterbi_table[M - 1, :])
+        best_path = np.zeros(M, dtype=int)
+        best_path[-1] = best_final_state
+
+        for t in range(M - 2, -1, -1):
+            best_path[t] = backpointer[t + 1, best_path[t + 1]]
+
+        best_hidden_state_sequence = [self.hidden_states[i] for i in best_path]
+        return best_hidden_state_sequence
